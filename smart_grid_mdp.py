@@ -7,15 +7,20 @@ I assume we use a fixed time length
 """
 
 class smart_grid:
-    def __init__(self, temp_in, temp_ex, time_int):
+    def __init__(self, temp_in, temp_ex, time_int, gamma, tau):
         self.temp_in = temp_in
         self.temp_ex = temp_ex
         self.time_int = time_int
+        self.gamma = gamma
+        self.tau = tau
         
         self.states = self.create_state()
         self.actions = [0, 1]  #[off, on]
         self.transition = self.getTransition()
         self.reward = self.reward_f()
+        self.reward_l = self.reward_leader()
+
+        self.nextSt_list, self.nextPro_list = self.stotrans_list()
     
     def create_state(self):
         #Initiate state space
@@ -56,6 +61,25 @@ class smart_grid:
                     return False
         # print("Transition is correct")
         return True
+    
+    def stotrans_list(self):
+        #Prepare data to generate samples
+        transition_list = {}
+        transition_pro = {}
+        for st in self.transition:
+            transition_list[st] = {}
+            transition_pro[st] = {}
+            for act in self.transition[st]:
+                transition_list[st][act] = {}
+                transition_pro[st][act] = {}
+                st_list = []
+                pro_list = []
+                for st_, pro in self.transition[st][act].items():
+                    st_list.append(st_)
+                    pro_list.append(pro)
+                transition_list[st][act] = st_list
+                transition_pro[st][act] = pro_list
+        return transition_list, transition_pro
                 
     def reward_f(self):
         reward = {}
@@ -82,7 +106,33 @@ class smart_grid:
 
         """
         return 
+    
+    def reward_leader(self):
+        """
+        Define the leader's reward function
+
+        Returns
+        -------
+        None.
+
+        """
+        return 
+    
+    def get_initial(initial_dist):
+        """
         
+
+        Parameters
+        ----------
+        initial_dist : dictionary
+            DESCRIPTION. The initial state distribution
+
+        Returns
+        -------
+        The distribution of initial states in a list form
+        
+        """
+        return
 
 class inside_temp:
     def __init__(self, start, end):
