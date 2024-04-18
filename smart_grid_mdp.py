@@ -254,7 +254,7 @@ class inside_temp:
     def __init__(self, start, end):
         self.state = [i for i in range(start, end + 1)]
     
-    def next_inside_temp(temp_in, temp_ex, heater):
+    def next_inside_temp(self, temp_in, temp_ex, heater):
         """
         Xinyi Finish this part
         Parameters
@@ -278,7 +278,7 @@ class external_temp:
     def __init__(self, start, end):
         self.state = [i for i in range(start, end + 1)]
         
-    def next_extrenal_temp(time):
+    def next_extrenal_temp(self, time):
         """
         Xinyi Finish this part        
         
