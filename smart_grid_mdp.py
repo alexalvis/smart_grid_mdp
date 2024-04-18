@@ -6,11 +6,13 @@ Created on Wed Apr 17 14:55:50 2024
 I assume we use a fixed time length
 """
 
+import numpy as np
+
 class smart_grid:
-    def __init__(self, temp_in, temp_ex, time_int, gamma, tau):
+    def __init__(self, temp_in, temp_ex, time, gamma, tau):
         self.temp_in = temp_in
         self.temp_ex = temp_ex
-        self.time_int = time_int
+        self.time_int = time
         self.gamma = gamma
         self.tau = tau
         
@@ -45,9 +47,11 @@ class smart_grid:
                 next_t_i = self.temp_in.next_inside_temp(t_i, t_e, t)
                 next_t_e_dist = self.temp_ex.next_extrenal_temp(t)
                 next_t = t + 1  #Assume the time interval is 1
-                
-                for next_t_e, pro in next_t_e_dist.items():
-                    trans[st][act][(next_t_i, next_t_e, next_t)] = pro
+                if next_t not in self.time_int:
+                    trans[st][act]['Sink'] = 1
+                else:
+                    for next_t_e, pro in next_t_e_dist.items():
+                        trans[st][act][(next_t_i, next_t_e, next_t)] = pro
                     
         self.check_trans(trans)
         return trans
@@ -80,7 +84,76 @@ class smart_grid:
                 transition_list[st][act] = st_list
                 transition_pro[st][act] = pro_list
         return transition_list, transition_pro
-                
+
+    def getcore(self, V, st, act):
+        core = 0
+        for st_, pro in self.transition[st][act].items():
+            if st_ != 'Sink':
+                core += pro * V[self.states.index(st_)]
+        return core
+    
+    def get_policy_entropy(self, reward, flag):
+        threshold = 0.0001
+        if not flag:
+            reward = self.reward_l
+        else:
+            self.update_reward(reward)
+            reward = self.reward
+        V = self.init_value()
+        V1 = V.copy()
+        policy = {}
+        Q = {}
+        for st in self.states:
+            policy[st] = {}
+            Q[st] = {}
+        itcount = 1
+        while (
+            itcount == 1
+            or np.inner(np.array(V) - np.array(V1), np.array(V) - np.array(V1))
+            > threshold
+        ):
+            V1 = V.copy()
+            for st in self.states:
+                Q_theta = []
+                for act in self.actions:
+                    core = (reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
+                    # Q[st][act] = np.exp(core)
+                    Q_theta.append(core)
+                Q_sub = Q_theta - np.max(Q_theta)
+                p = np.exp(Q_sub)/np.exp(Q_sub).sum()
+                # Q_s = sum(Q[st].values())
+                # for act in self.actions:
+                    # policy[st][act] = Q[st][act] / Q_s
+                for i in range(len(self.actions)):
+                    policy[st][self.actions[i]] = p[i]
+                V[self.states.index(st)] = self.tau * np.log(np.exp(Q_theta).sum())
+            itcount += 1
+        return V, policy
+    
+    def policy_evaluation(self, reward, flag, policy):
+        threshold = 0.00001
+        if not flag:
+            reward = self.reward_l
+        else:
+            self.update_reward(reward)
+            reward = self.reward
+        V = self.init_value()
+        delta = np.inf
+        while delta > threshold:
+            V1 = V.copy()
+            for st in self.states:
+                temp = 0
+                for act in self.actions:
+                    if act in policy[st].keys():
+                        temp += policy[st][act] * (reward[st][act] + self.gamma * self.getcore(V1, st, act))
+                V[self.states.index(st)] = temp
+            delta = np.max(abs(V-V1))
+        return V
+    
+    def init_value(self):
+        #Initial the value to be all 0
+        return np.zeros(len(self.states))
+    
     def reward_f(self):
         reward = {}
         for st in self.states:
@@ -91,7 +164,7 @@ class smart_grid:
     
     def reward_single(self, state, act):
         """
-        
+        Define the follower's reward function
 
         Parameters
         ----------
@@ -117,8 +190,9 @@ class smart_grid:
 
         """
         return 
-    
+
     def get_initial(initial_dist):
+
         """
         
 
@@ -133,6 +207,48 @@ class smart_grid:
         
         """
         return
+    
+    def generate_sample(self, pi):
+        #pi here should be pi[st] = [pro1, pro2, ...]
+        traj = []
+        st_index = np.random.choice(len(self.states), 1, p = self.init)[0]
+        st = self.states[st_index]
+        act_index = np.random.choice(len(self.actions), 1, p = pi[st])[0]
+        act = self.actions[act_index]
+        traj.append(st)
+        traj.append(act)
+        next_st = self.one_step_transition(st, act)
+        while next_st != "Sink":
+            st = next_st
+            # st_index = self.states.index(st)
+            act_index = np.random.choice(len(self.actions), 1, p = pi[st])[0]
+            act = self.actions[act_index]
+            traj.append(st)
+            traj.append(act)
+            next_st = self.one_step_transition(st, act)
+        traj.append(next_st)
+        return traj
+    
+    def one_step_transition(self, st, act):
+        st_list = self.nextSt_list[st][act]
+        pro_list = self.nextPro_list[st][act]
+        next_st = np.random.choice(len(st_list), 1, p = pro_list)[0]
+        return st_list[next_st]
+        
+    def reward_traj(self, traj, flag):
+        #Flag is used to identify whether it is leader's reward or follower
+        #Flag = 0 represents leader, Flag = 1 represents follower
+        if not flag:
+            reward = self.reward_l
+        else:
+            reward = self.reward
+        st = traj[0]
+        act = traj[1]
+        if len(traj) >= 4:
+            r = reward[st][act] + self.gamma * self.reward_traj(traj[2:], flag)
+        else:
+            return reward[st][act]
+        return r
 
 class inside_temp:
     def __init__(self, start, end):
