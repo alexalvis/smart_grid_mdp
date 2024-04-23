@@ -231,7 +231,7 @@ class smart_grid:
         t_e_dict = t_e.next_extrenal_temp(0) # a distribution dict
         dict = {}
         for key in t_e_dict.keys():
-            state = (key, key+2, t_0)
+            state = (key, key+2, t_0) # to be dicussed
             dict[state] = t_e_dict[key]
         return dict
 
@@ -299,14 +299,17 @@ class inside_temp:
 
         """
         COP = 2.5
-        m_air = 1250
-        c_air = 1000
+        m_air = 2000
+        c_air = 2000
         lam = 90
         r_h = 1500
         delta_t = 3600 #Delta T = 3600s
 
         Q = heater * r_h * COP - lam * (temp_in - temp_ex)
-        temp_in_next = temp_in + Q/(m_air * c_air) * delta_t
+        temp_in_next = round(temp_in + Q/(m_air * c_air) * delta_t)
+        c = self.state[-1]
+        if temp_in_next > c:
+            temp_in_next = c
         return temp_in_next
 
 class external_temp:
@@ -342,24 +345,20 @@ class external_temp:
         distribution = {}
 
         sigma = 2
-        list_p = []
+        dict_p = {}
         for st in self.state:
             st_l = st - 0.5
             st_r = st + 0.5
             cdf_st_l = norm.cdf(st_l, T, sigma)
             cdf_st_r = norm.cdf(st_r, T, sigma)
             p = cdf_st_r - cdf_st_l
-            list_p.append(p)
+            if p > 0.05:
+                dict_p[st] = p
 
         #normalize
-        array_p = np.array(list_p)
-        array_p = array_p/np.sum(array_p)
+        sum_values = sum(dict_p.values())
+        normalized_dict_p = {key: value / sum_values for key, value in dict_p.items()}
 
-        count = 0
-        for st in self.state:
-            distribution[st] = array_p[count]
-            count = count + 1
-
-        return distribution
+        return normalized_dict_p
 
 
