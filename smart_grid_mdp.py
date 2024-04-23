@@ -211,7 +211,7 @@ class smart_grid:
                 reward[state][act] = - c_t
         return reward
 
-    def get_initial(initial_dist): #return a dictionary of intial distribution
+    def get_initial(self, external_temp): #return a dictionary of intial distribution
 
         """
 
@@ -227,11 +227,11 @@ class smart_grid:
 
         """
         t_0 = 0
-        t_e = external_temp(15, 33)
+        t_e = external_temp
         t_e_dict = t_e.next_extrenal_temp(0) # a distribution dict
         dict = {}
         for key in t_e_dict.keys():
-            state = (key, key-5, t_0)
+            state = (key, key+2, t_0)
             dict[state] = t_e_dict[key]
         return dict
 
