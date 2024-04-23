@@ -363,3 +363,13 @@ class external_temp:
         return distribution
 
 
+def test():
+    e_temp = external_temp(10, 25)
+    i_temp = inside_temp(20, 26)
+    # print(e_temp.next_extrenal_temp(1))
+    print(i_temp.next_inside_temp(20, 10, 1))
+    
+
+if __name__ == "__main__":
+    test()
+
