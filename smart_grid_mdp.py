@@ -155,16 +155,16 @@ class smart_grid:
         #Initial the value to be all 0
         return np.zeros(len(self.states))
 
-    def reward_f(self, price):
+    def reward_f(self):
         # price is an array storing electricity price in each time interval
         reward = {}
         for st in self.states:
             reward[st] = {}
             for act in self.actions:
-                reward[st][act] = self.reward_single(st, act, price[st[2]])
+                reward[st][act] = self.reward_single(st, act)
         return reward
 
-    def reward_single(self, state, act, price_t):
+    def reward_single(self, state, act):
         """
         Define the follower's reward function
 
@@ -181,14 +181,13 @@ class smart_grid:
 
         """
         T_star = 20 #ideal temperature of the user
-        r_h = 1.5 #unit is kW
         b = 1 #sensitivity varys among different users
-        cost = act * r_h * price_t
+
         T_int = state[0]
-        reward = - b * (T_int-T_star) ** 2 - cost
+        reward = - b * (T_int-T_star) ** 2
         return reward
 
-    def reward_leader(self, state, act, price, cost):
+    def reward_leader(self):
         """
         Define the leader's reward function
 
@@ -197,15 +196,22 @@ class smart_grid:
         None.
 
         """
-        r_h = 1.5
-        t = state[2]
-        p_t = price[t]
-        revenue = act * r_h * p_t
-        c_t = cost[t]
-        reward = revenue - c_t
+        reward = {}
+        for state in self.states:
+            t = state[2]
+            reward[state] = {}
+            for act in self.actions:
+                c_t = 0 #unit is cents/kWh
+                if 0 <= t < 5 or 20 <= c_t < 24:
+                    c_t = 10 * act
+                elif 5 <= t < 14:
+                    c_t = 20 * act
+                elif 14 <= t < 20:
+                    c_t = 40 * act
+                reward[state][act] = - c_t
         return reward
 
-    def get_initial(initial_dist):
+    def get_initial(initial_dist): #return a dictionary of intial distribution
 
         """
 
@@ -220,7 +226,14 @@ class smart_grid:
         The distribution of initial states in a list form
 
         """
-        return
+        t_0 = 0
+        t_e = external_temp(15, 33)
+        t_e_dict = t_e.next_extrenal_temp(0) # a distribution dict
+        dict = {}
+        for key in t_e_dict.keys():
+            state = (key, key-5, t_0)
+            dict[state] = t_e_dict[key]
+        return dict
 
     def generate_sample(self, pi):
         #pi here should be pi[st] = [pro1, pro2, ...]
@@ -315,9 +328,9 @@ class external_temp:
 
         """
         #assume time is from 0-23 hour
-        t1, T_sub_high = 18, 0
-        t2, T_low = 15, 6
-        t3, T_high = 30, 14
+        T_sub_high, t1 = 13, 0
+        T_low, t2 = 10, 6
+        T_high, t3 = 25, 14
         t4 = 23
         if t1 <= time < t2:
             T = T_sub_high - (T_sub_high - T_low) / (t2 - t1) * (time - t1)
@@ -348,3 +361,5 @@ class external_temp:
             count = count + 1
 
         return distribution
+
+
