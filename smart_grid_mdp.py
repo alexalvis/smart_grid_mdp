@@ -185,10 +185,14 @@ class smart_grid:
 
         """
         T_star = 20 #ideal temperature of the user
-        b = 1 #sensitivity varys among different users
+        b = 8 #sensitivity varys among different users, may need further adjustment
 
         T_int = state[0]
-        reward = - b * (T_int-T_star) ** 2
+        price = 20 #unit is cents/kWh
+        r_h = 1.50 #unit is kW
+        cost = act * r_h * price
+
+        reward = - b * (T_int-T_star) ** 2 + cost
         return reward
 
     def reward_leader(self):
@@ -235,11 +239,11 @@ class smart_grid:
         t_0 = 0
         t_e = external_temp
         t_e_dict = t_e.next_extrenal_temp(0) # a distribution dict
-        dict = {}
+        initial_dist = {}
         for key in t_e_dict.keys():
             state = (key, key+2, t_0) # to be dicussed
-            dict[state] = t_e_dict[key]
-        return dict
+            initial_dist[state] = t_e_dict[key]
+        return initial_dist
 
 
     def generate_sample(self, pi):
@@ -341,7 +345,7 @@ class inside_temp:
         c_air = 2000
         lam = 90
         r_h = 1500
-        delta_t = 3600 #Delta T = 3600s
+        delta_t = 3600 #Unit is second
 
         Q = heater * r_h * COP - lam * (temp_in - temp_ex)
         temp_in_next = round(temp_in + Q/(m_air * c_air) * delta_t)
@@ -402,12 +406,13 @@ class external_temp:
 def test():
     e_temp = external_temp(10, 25)
     i_temp = inside_temp(20, 26)
-#    print(e_temp.next_extrenal_temp(1))
-    print(i_temp.next_inside_temp(20, 10, 0))
+    print(e_temp.next_extrenal_temp(1))
+#     print(i_temp.next_inside_temp(24, 18, 0))
     time = [i for i in range(24)]
     gamma = 0.95
     tau = 0.01
-    sg = smart_grid(i_temp, e_temp, time, gamma, tau)
+    # sg = smart_grid(i_temp, e_temp, time, gamma, tau)
+    sg = None
     return sg
 
 if __name__ == "__main__":
