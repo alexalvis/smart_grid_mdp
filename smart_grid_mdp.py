@@ -7,6 +7,8 @@ I assume we use a fixed time length
 """
 
 import numpy as np
+from scipy.stats import norm
+
 
 class smart_grid:
     def __init__(self, temp_in, temp_ex, time, gamma, tau):
@@ -15,7 +17,7 @@ class smart_grid:
         self.time_int = time
         self.gamma = gamma
         self.tau = tau
-        
+
         self.states = self.create_state()
         self.actions = [0, 1]  #[off, on]
         self.transition = self.getTransition()
@@ -23,7 +25,7 @@ class smart_grid:
         self.reward_l = self.reward_leader()
 
         self.nextSt_list, self.nextPro_list = self.stotrans_list()
-    
+
     def create_state(self):
         #Initiate state space
         states = []
@@ -32,7 +34,7 @@ class smart_grid:
                 for t in self.time_int:
                     states.append((t_i, t_e, t))
         return states
-    
+
     def getTransition(self):
         #Calculate transition function
         trans = {}
@@ -41,7 +43,7 @@ class smart_grid:
             t_i = st[0]
             t_e = st[1]
             t = st[2]
-            
+
             for act in self.actions:
                 trans[st][act] = {}
                 next_t_i = self.temp_in.next_inside_temp(t_i, t_e, t)
@@ -52,10 +54,10 @@ class smart_grid:
                 else:
                     for next_t_e, pro in next_t_e_dist.items():
                         trans[st][act][(next_t_i, next_t_e, next_t)] = pro
-                    
+
         self.check_trans(trans)
         return trans
-    
+
     def check_trans(self, trans):
         #Check if the transition system is correct
         for st in trans.keys():
@@ -65,7 +67,7 @@ class smart_grid:
                     return False
         # print("Transition is correct")
         return True
-    
+
     def stotrans_list(self):
         #Prepare data to generate samples
         transition_list = {}
@@ -91,7 +93,7 @@ class smart_grid:
             if st_ != 'Sink':
                 core += pro * V[self.states.index(st_)]
         return core
-    
+
     def get_policy_entropy(self, reward, flag):
         threshold = 0.0001
         if not flag:
@@ -129,7 +131,7 @@ class smart_grid:
                 V[self.states.index(st)] = self.tau * np.log(np.exp(Q_theta).sum())
             itcount += 1
         return V, policy
-    
+
     def policy_evaluation(self, reward, flag, policy):
         threshold = 0.00001
         if not flag:
@@ -149,19 +151,22 @@ class smart_grid:
                 V[self.states.index(st)] = temp
             delta = np.max(abs(V-V1))
         return V
+
     
     def init_value(self):
         #Initial the value to be all 0
         return np.zeros(len(self.states))
     
+
     def reward_f(self):
+        # price is an array storing electricity price in each time interval
         reward = {}
         for st in self.states:
             reward[st] = {}
             for act in self.actions:
                 reward[st][act] = self.reward_single(st, act)
         return reward
-    
+
     def reward_single(self, state, act):
         """
         Define the follower's reward function
@@ -178,8 +183,13 @@ class smart_grid:
         reward value given state and action
 
         """
-        return 
-    
+        T_star = 20 #ideal temperature of the user
+        b = 1 #sensitivity varys among different users
+
+        T_int = state[0]
+        reward = - b * (T_int-T_star) ** 2
+        return reward
+
     def reward_leader(self):
         """
         Define the leader's reward function
@@ -189,12 +199,26 @@ class smart_grid:
         None.
 
         """
-        return 
 
-    def get_initial(initial_dist):
+        reward = {}
+        for state in self.states:
+            t = state[2]
+            reward[state] = {}
+            for act in self.actions:
+                c_t = 0 #unit is cents/kWh
+                if 0 <= t < 5 or 20 <= c_t < 24:
+                    c_t = 10 * act
+                elif 5 <= t < 14:
+                    c_t = 20 * act
+                elif 14 <= t < 20:
+                    c_t = 40 * act
+                reward[state][act] = - c_t
+        return reward
+
+    def get_initial(self, external_temp): #return a dictionary of intial distribution
 
         """
-        
+
 
         Parameters
         ----------
@@ -204,10 +228,19 @@ class smart_grid:
         Returns
         -------
         The distribution of initial states in a list form
-        
+
         """
-        return
-    
+
+        t_0 = 0
+        t_e = external_temp
+        t_e_dict = t_e.next_extrenal_temp(0) # a distribution dict
+        dict = {}
+        for key in t_e_dict.keys():
+            state = (key, key+2, t_0)
+            dict[state] = t_e_dict[key]
+        return dict
+
+
     def generate_sample(self, pi):
         #pi here should be pi[st] = [pro1, pro2, ...]
         traj = []
@@ -228,13 +261,13 @@ class smart_grid:
             next_st = self.one_step_transition(st, act)
         traj.append(next_st)
         return traj
-    
+
     def one_step_transition(self, st, act):
         st_list = self.nextSt_list[st][act]
         pro_list = self.nextPro_list[st][act]
         next_st = np.random.choice(len(st_list), 1, p = pro_list)[0]
         return st_list[next_st]
-        
+
     def reward_traj(self, traj, flag):
         #Flag is used to identify whether it is leader's reward or follower
         #Flag = 0 represents leader, Flag = 1 represents follower
@@ -253,7 +286,7 @@ class smart_grid:
 class inside_temp:
     def __init__(self, start, end):
         self.state = [i for i in range(start, end + 1)]
-    
+
     def next_inside_temp(self, temp_in, temp_ex, heater):
         """
         Xinyi Finish this part
@@ -271,17 +304,25 @@ class inside_temp:
         inside temperature of next time step
 
         """
-        
-        return
-    
+        COP = 2.5
+        m_air = 1250
+        c_air = 1000
+        lam = 90
+        r_h = 1500
+        delta_t = 3600 #Delta T = 3600s
+
+        Q = heater * r_h * COP - lam * (temp_in - temp_ex)
+        temp_in_next = temp_in + Q/(m_air * c_air) * delta_t
+        return temp_in_next
+
 class external_temp:
     def __init__(self, start, end):
         self.state = [i for i in range(start, end + 1)]
-        
+
     def next_extrenal_temp(self, time):
         """
-        Xinyi Finish this part        
-        
+        Xinyi Finish this part
+
         Parameters
         ----------
         time : int
@@ -292,6 +333,49 @@ class external_temp:
         a distribution of temperature at this time. key is the temperature, value is the probability
 
         """
-        
+        #assume time is from 0-23 hour
+        T_sub_high, t1 = 13, 0
+        T_low, t2 = 10, 6
+        T_high, t3 = 25, 14
+        t4 = 23
+        if t1 <= time < t2:
+            T = T_sub_high - (T_sub_high - T_low) / (t2 - t1) * (time - t1)
+        elif t2 <= time < t3:
+            T = T_high - (T_high - T_low) / (t3 - t2) * (t3 - time)
+        else:
+            T = T_high - (T_high - T_sub_high) / (t4 - t3) * (time - t3)
+
         distribution = {}
+
+        sigma = 2
+        list_p = []
+        for st in self.state:
+            st_l = st - 0.5
+            st_r = st + 0.5
+            cdf_st_l = norm.cdf(st_l, T, sigma)
+            cdf_st_r = norm.cdf(st_r, T, sigma)
+            p = cdf_st_r - cdf_st_l
+            list_p.append(p)
+
+        #normalize
+        array_p = np.array(list_p)
+        array_p = array_p/np.sum(array_p)
+
+        count = 0
+        for st in self.state:
+            distribution[st] = array_p[count]
+            count = count + 1
+
         return distribution
+
+
+def test():
+    e_temp = external_temp(10, 25)
+    i_temp = inside_temp(20, 26)
+    # print(e_temp.next_extrenal_temp(1))
+    print(i_temp.next_inside_temp(20, 10, 1))
+    
+
+if __name__ == "__main__":
+    test()
+
