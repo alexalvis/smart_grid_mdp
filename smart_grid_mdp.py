@@ -21,8 +21,9 @@ class smart_grid:
         self.states = self.create_state()
         self.actions = [0, 1]  #[off, on]
         self.transition = self.getTransition()
-        self.reward = self.reward_f()
-        self.reward_l = self.reward_leader()
+#        self.initial = self.get_initial()
+#        self.reward = self.reward_f()
+#        self.reward_l = self.reward_leader()
 
         self.nextSt_list, self.nextPro_list = self.stotrans_list()
 
@@ -282,6 +283,37 @@ class smart_grid:
         else:
             return reward[st][act]
         return r
+    
+    def stVisitFre(self, policy):
+        threshold = 0.00001
+        gamma = 0.95
+        Z0 = self.initial
+        Z_new = Z0.copy()
+        Z_old = Z_new.copy()
+        itcount = 1
+
+        while itcount == 1 or np.inner(np.array(Z_new)-np.array(Z_old), np.array(Z_new)-np.array(Z_old)) > threshold:
+#            print(itcount)
+            Z_old = Z_new.copy()
+            Z_new = Z0.copy()
+            for st in self.states:
+                index_st = self.states.index(st)
+                for act in self.actions:
+                    for st_ in self.states:
+                        if st in self.stotrans[st_][act].keys():
+                            Z_new[index_st] += gamma * Z_old[self.states.index(st_)] * policy[st_][act] * self.stotrans[st_][act][st]
+            
+            itcount += 1
+        return Z_new
+    
+    def stactVisitFre(self, policy):
+        Z = self.stVisitFre(policy)
+        st_act_visit = {}
+        for i in range(len(self.states)):
+            st_act_visit[self.states[i]] ={}
+            for act in self.actions:
+                st_act_visit[self.states[i]][act] = Z[i] * policy[self.states[i]][act]
+        return st_act_visit
 
 class inside_temp:
     def __init__(self, start, end):
@@ -312,7 +344,8 @@ class inside_temp:
         delta_t = 3600 #Delta T = 3600s
 
         Q = heater * r_h * COP - lam * (temp_in - temp_ex)
-        temp_in_next = temp_in + Q/(m_air * c_air) * delta_t
+        temp_in_next = round(temp_in + Q/(m_air * c_air) * delta_t)
+        temp_in_next = self.state[0] if temp_in_next < self.state[0] else self.state[-1] if temp_in_next > self.state[-1] else temp_in_next
         return temp_in_next
 
 class external_temp:
@@ -372,10 +405,14 @@ class external_temp:
 def test():
     e_temp = external_temp(10, 25)
     i_temp = inside_temp(20, 26)
-    # print(e_temp.next_extrenal_temp(1))
-    print(i_temp.next_inside_temp(20, 10, 1))
-    
+#    print(e_temp.next_extrenal_temp(1))
+    print(i_temp.next_inside_temp(20, 10, 0))
+    time = [i for i in range(24)]
+    gamma = 0.95
+    tau = 0.01
+    sg = smart_grid(i_temp, e_temp, time, gamma, tau)
+    return sg
 
 if __name__ == "__main__":
-    test()
+    sg = test()
 
