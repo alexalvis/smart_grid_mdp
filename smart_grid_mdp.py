@@ -22,8 +22,8 @@ class smart_grid:
         self.actions = [0, 1]  #[off, on]
         self.transition = self.getTransition()
 #        self.initial = self.get_initial()
-#        self.reward = self.reward_f()
-#        self.reward_l = self.reward_leader()
+        self.reward = self.reward_f()
+        self.reward_l = self.reward_leader()
 
         self.nextSt_list, self.nextPro_list = self.stotrans_list()
 
@@ -47,7 +47,7 @@ class smart_grid:
 
             for act in self.actions:
                 trans[st][act] = {}
-                next_t_i = self.temp_in.next_inside_temp(t_i, t_e, t)
+                next_t_i = self.temp_in.next_inside_temp(t_i, t_e, act)
                 next_t_e_dist = self.temp_ex.next_extrenal_temp(t)
                 next_t = t + 1  #Assume the time interval is 1
                 if next_t not in self.time_int:
@@ -100,7 +100,7 @@ class smart_grid:
         if not flag:
             reward = self.reward_l
         else:
-            self.update_reward(reward)
+#            self.update_reward(reward)
             reward = self.reward
         V = self.init_value()
         V1 = V.copy()
@@ -109,13 +109,14 @@ class smart_grid:
         for st in self.states:
             policy[st] = {}
             Q[st] = {}
-        itcount = 1
+        itcount = 1 
         while (
             itcount == 1
             or np.inner(np.array(V) - np.array(V1), np.array(V) - np.array(V1))
             > threshold
         ):
-            V1 = V.copy()
+            V1 = V.copy()   
+            print("itcount:", itcount)
             for st in self.states:
                 Q_theta = []
                 for act in self.actions:
@@ -184,15 +185,17 @@ class smart_grid:
         reward value given state and action
 
         """
-        T_star = 20 #ideal temperature of the user
-        b = 8 #sensitivity varys among different users, may need further adjustment
+        T_star = 23 #ideal temperature of the user
+        b = 10 #sensitivity varys among different users, may need further adjustment
 
         T_int = state[0]
-        price = 20 #unit is cents/kWh
+        price = 0 #unit is cents/kWh
         r_h = 1.50 #unit is kW
         cost = act * r_h * price
 
-        reward = - b * (T_int-T_star) ** 2 + cost
+
+        reward = - b * (T_int-T_star) ** 2 - cost
+#        reward/= 10
         return reward
 
     def reward_leader(self):
@@ -343,7 +346,7 @@ class inside_temp:
         COP = 2.5
         m_air = 2000
         c_air = 2000
-        lam = 90
+        lam = 1000
         r_h = 1500
         delta_t = 3600 #Unit is second
 
@@ -406,15 +409,23 @@ class external_temp:
 def test():
     e_temp = external_temp(10, 25)
     i_temp = inside_temp(20, 26)
-    print(e_temp.next_extrenal_temp(1))
-#     print(i_temp.next_inside_temp(24, 18, 0))
+#    print(e_temp.next_extrenal_temp(23))
+    print(i_temp.next_inside_temp(22, 13, 0))
     time = [i for i in range(24)]
     gamma = 0.95
-    tau = 0.01
-    # sg = smart_grid(i_temp, e_temp, time, gamma, tau)
-    sg = None
+    tau = 2
+    sg = smart_grid(i_temp, e_temp, time, gamma, tau)
+#    sg = None
     return sg
 
 if __name__ == "__main__":
     sg = test()
+    state_1 = (23, 13, 23)
+    state_2 = (22, 13, 23)
+    state_3 = (24, 13, 23)
+    V, policy = sg.get_policy_entropy([], 1)
+    index_1 = sg.states.index(state_1)
+    index_2 = sg.states.index(state_2)
+    index_3 = sg.states.index(state_3)
+    print(V[index_1], V[index_2], V[index_3])
 
