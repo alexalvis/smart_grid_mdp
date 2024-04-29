@@ -346,8 +346,8 @@ class inside_temp:
         COP = 2.5
         m_air = 2000
         c_air = 2000
-        lam = 1000
-        r_h = 2000
+        lam = 400
+        r_h = 900
         delta_t = 3600 #Unit is second
 
         Q = heater * r_h * COP - lam * (temp_in - temp_ex)
@@ -405,13 +405,13 @@ class external_temp:
 
 
 def test():
-    e_temp = external_temp(10, 26)
-    i_temp = inside_temp(10, 26)
+    e_temp = external_temp(13, 26)
+    i_temp = inside_temp(20, 26)
 #    print(e_temp.next_extrenal_temp(23))
-    print(i_temp.next_inside_temp(22, 15, 0))
+    print(i_temp.next_inside_temp(21, 13, 1))
     time = [i for i in range(24)]
     gamma = 0.95
-    tau = 2s
+    tau = 2
     sg = smart_grid(i_temp, e_temp, time, gamma, tau)
 #    sg = None
     return sg
