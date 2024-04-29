@@ -52,6 +52,8 @@ class smart_grid:
                 next_t = t + 1  #Assume the time interval is 1
                 if next_t not in self.time_int:
                     trans[st][act]['Sink'] = 1
+                elif next_t_i == 'P':
+                    trans[st][act]['Penalty'] = 1
                 else:
                     for next_t_e, pro in next_t_e_dist.items():
                         trans[st][act][(next_t_i, next_t_e, next_t)] = pro
@@ -91,6 +93,8 @@ class smart_grid:
     def getcore(self, V, st, act):
         core = 0
         for st_, pro in self.transition[st][act].items():
+            if st_ == 'Penalty':
+                return -300
             if st_ != 'Sink':
                 core += pro * V[self.states.index(st_)]
         return core
@@ -352,8 +356,12 @@ class inside_temp:
 
         Q = heater * r_h * COP - lam * (temp_in - temp_ex)
         temp_in_next = round(temp_in + Q/(m_air * c_air) * delta_t)
-
-        temp_in_next = self.state[0] if temp_in_next < self.state[0] else self.state[-1] if temp_in_next > self.state[-1] else temp_in_next
+        
+        if heater:
+            temp_in_next = self.state[0] if temp_in_next < self.state[0] else self.state[-1] if temp_in_next > self.state[-1] else temp_in_next
+        else:
+            if temp_in_next < self.state[0]:
+                temp_in_next = 'P'
         return temp_in_next
 
 class external_temp:
@@ -408,23 +416,23 @@ def test():
     e_temp = external_temp(13, 26)
     i_temp = inside_temp(20, 26)
 #    print(e_temp.next_extrenal_temp(23))
-    print(i_temp.next_inside_temp(21, 13, 1))
+    print(i_temp.next_inside_temp(20, 16, 1))
     time = [i for i in range(24)]
     gamma = 0.95
     tau = 2
-    sg = smart_grid(i_temp, e_temp, time, gamma, tau)
-#    sg = None
+    # sg = smart_grid(i_temp, e_temp, time, gamma, tau)
+    sg = None
     return sg
 
 if __name__ == "__main__":
     sg = test()
-    state_1 = (23, 13, 23)
-    state_2 = (22, 13, 23)
-    state_3 = (24, 13, 23)
-    V, policy = sg.get_policy_entropy([], 1)
-    index_1 = sg.states.index(state_1)
-    index_2 = sg.states.index(state_2)
-    index_3 = sg.states.index(state_3)
-    print(V[index_1], V[index_2], V[index_3])
+    # state_1 = (23, 13, 23)
+    # state_2 = (22, 13, 23)
+    # state_3 = (24, 13, 23)
+    # V, policy = sg.get_policy_entropy([], 1)
+    # index_1 = sg.states.index(state_1)
+    # index_2 = sg.states.index(state_2)
+    # index_3 = sg.states.index(state_3)
+    # print(V[index_1], V[index_2], V[index_3])
   
 
