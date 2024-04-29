@@ -186,10 +186,10 @@ class smart_grid:
 
         """
         T_star = 23 #ideal temperature of the user
-        b = 10 #sensitivity varys among different users, may need further adjustment
+        b = 1 #sensitivity varys among different users, may need further adjustment
 
         T_int = state[0]
-        price = 0 #unit is cents/kWh
+        price = 2
         r_h = 1.50 #unit is kW
         cost = act * r_h * price
 
@@ -347,7 +347,7 @@ class inside_temp:
         m_air = 2000
         c_air = 2000
         lam = 1000
-        r_h = 1500
+        r_h = 2000
         delta_t = 3600 #Unit is second
 
         Q = heater * r_h * COP - lam * (temp_in - temp_ex)
@@ -386,8 +386,6 @@ class external_temp:
         else:
             T = T_high - (T_high - T_sub_high) / (t4 - t3) * (time - t3)
 
-        distribution = {}
-
         sigma = 2
         dict_p = {}
         for st in self.state:
@@ -407,13 +405,13 @@ class external_temp:
 
 
 def test():
-    e_temp = external_temp(10, 25)
-    i_temp = inside_temp(20, 26)
+    e_temp = external_temp(10, 26)
+    i_temp = inside_temp(10, 26)
 #    print(e_temp.next_extrenal_temp(23))
-    print(i_temp.next_inside_temp(22, 13, 0))
+    print(i_temp.next_inside_temp(22, 15, 0))
     time = [i for i in range(24)]
     gamma = 0.95
-    tau = 2
+    tau = 2s
     sg = smart_grid(i_temp, e_temp, time, gamma, tau)
 #    sg = None
     return sg
@@ -428,4 +426,5 @@ if __name__ == "__main__":
     index_2 = sg.states.index(state_2)
     index_3 = sg.states.index(state_3)
     print(V[index_1], V[index_2], V[index_3])
+  
 
