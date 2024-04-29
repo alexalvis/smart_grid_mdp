@@ -382,10 +382,12 @@ class external_temp:
         a distribution of temperature at this time. key is the temperature, value is the probability
 
         """
+        start = self.state[0]
+        end = self.state[-1]
         #assume time is from 0-23 hour
-        T_sub_high, t1 = 13, 0
-        T_low, t2 = 10, 6
-        T_high, t3 = 25, 14
+        T_sub_high, t1 = start + (end - start)/3, 0
+        T_low, t2 = start, 6
+        T_high, t3 = end, 14
         t4 = 23
         if t1 <= time < t2:
             T = T_sub_high - (T_sub_high - T_low) / (t2 - t1) * (time - t1)
