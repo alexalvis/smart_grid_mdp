@@ -422,8 +422,8 @@ def test():
     time = [i for i in range(24)]
     gamma = 0.95
     tau = 2
-    # sg = smart_grid(i_temp, e_temp, time, gamma, tau)
-    sg = None
+    sg = smart_grid(i_temp, e_temp, time, gamma, tau)
+    # sg = None
     return sg
 
 if __name__ == "__main__":
@@ -431,7 +431,7 @@ if __name__ == "__main__":
     # state_1 = (23, 13, 23)
     # state_2 = (22, 13, 23)
     # state_3 = (24, 13, 23)
-    # V, policy = sg.get_policy_entropy([], 1)
+    V, policy = sg.get_policy_entropy([], 1)
     # index_1 = sg.states.index(state_1)
     # index_2 = sg.states.index(state_2)
     # index_3 = sg.states.index(state_3)
