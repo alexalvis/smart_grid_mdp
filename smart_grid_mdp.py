@@ -21,6 +21,7 @@ class smart_grid:
         self.states = self.create_state()
         self.actions = [0, 1]  #[off, on]
         self.transition = self.getTransition()
+        self.trans_kernal_Q()
 #        self.initial = self.get_initial()
         self.reward = self.reward_f()
         self.reward_l = self.reward_leader()
@@ -59,6 +60,7 @@ class smart_grid:
                         trans[st][act][(next_t_i, next_t_e, next_t)] = pro
 
         self.check_trans(trans)
+
         return trans
 
     def check_trans(self, trans):
@@ -326,6 +328,47 @@ class smart_grid:
                 st_act_visit[self.states[i]][act] = Z[i] * policy[self.states[i]][act]
         return st_act_visit
 
+    def transition_kernel(self, policy):
+        trans = np.zeros((len(self.states), len(self.states)))
+        for st in self.states:
+            st_index = self.states.index(st)
+            for act in self.actions:
+                for next_st, pro in self.transition[st][act].items():
+                    if next_st in self.states:
+                        next_st_index = self.states.index(next_st)
+                        trans[st_index][next_st_index] += pro * policy[st][act]
+        
+        self.transKernel = trans
+        
+    def trans_kernal_Q(self):
+        len_act = len(self.actions)
+        trans_Q = np.zeros((len(self.states)*len(self.actions), len(self.states)))
+        for i in range(len(self.states)):
+            for j in range(len(self.actions)):
+                for next_st, pro in self.transition[self.states[i]][self.actions[j]].items():
+                    if next_st in self.states:
+                        trans_Q[i * len_act + j][self.states.index(next_st)] = pro
+        self.trans_matrix = trans_Q
+        
+    def successor(self):
+        I = np.identity(len(self.states))
+        suc = np.linalg.inv(I -self.gamma * self.transKernel)
+        return suc
+    
+    def suc_v(self, suc, policy):
+        len_act = len(self.actions)
+        reward = self.reward_f()
+        R = np.zeros(len(self.states))
+        for i in range(len(self.states)):
+            R[i] = sum(policy[self.states[i]][act] * reward[self.states[i]][act] for act in self.actions)
+        suc_v = suc.dot(R)
+        R_Q = np.zeros(len(self.states)*len(self.actions))
+        for i in range(len(self.states)):
+            for j in range(len(self.actions)):
+                R_Q[i * len_act + j] = reward[self.states[i]][self.actions[j]]
+        suc_Q = R_Q.T + self.gamma * self.trans_matrix.dot(suc_v)
+        
+        return suc_v, suc_Q, R_Q
 class inside_temp:
     def __init__(self, start, end):
         self.state = [i for i in range(start, end + 1)]
@@ -432,6 +475,10 @@ if __name__ == "__main__":
     # state_2 = (22, 13, 23)
     # state_3 = (24, 13, 23)
     V, policy = sg.get_policy_entropy([], 1)
+    sg.transition_kernel(policy)
+    suc = sg.successor()
+    suc_v, suc_Q, R_Q = sg.suc_v(suc, policy)
+    trans_matrix = sg.trans_matrix
     # index_1 = sg.states.index(state_1)
     # index_2 = sg.states.index(state_2)
     # index_3 = sg.states.index(state_3)
